@@ -46,7 +46,8 @@ function Mouth({ style }: { style: MouthStyle }) {
   return <line x1={10} y1={22} x2={22} y2={22} stroke={dark} strokeWidth={1.8} strokeLinecap="round" />;
 }
 
-// 頭上の芽・花。原点(16,12)を土台として、上方向(y座標が小さい方向)に伸びる。
+// 頭上の芽・花。土台(16,12)を下端として、上方向(y座標が小さい方向)に伸びる。
+// この座標のまま「頭上オーバーレイ用SVG」のviewBoxの下端に合わせて描画する。
 function Plant({ stage }: { stage: PlantStage }) {
   if (stage === 'none') return null;
   const stem = <line x1={16} y1={12} x2={16} y2={stage === 'sprout' ? 7 : 3} stroke="#5DA85E" strokeWidth={1.6} strokeLinecap="round" />;
@@ -95,29 +96,54 @@ function Plant({ stage }: { stage: PlantStage }) {
   );
 }
 
+// 芽・花はこのぶんだけ上にはみ出す（頭上オーバーレイのviewBox高さ / 本体32との比率）
+const PLANT_OVERLAY_RATIO = 15 / 32;
+
 export function MoodSquare({ level, day, plantStage = 'none', size = 40, selected, onClick }: MoodSquareProps) {
   const config = MOOD_LEVELS[level];
   const hasPlant = plantStage !== 'none';
-  const viewBox = hasPlant ? '0 0 32 46' : '0 0 32 32';
-  const height = hasPlant ? size * (46 / 32) : size;
 
-  const svg = (
-    <svg viewBox={viewBox} width={size} height={height} aria-hidden={onClick ? true : undefined} role={onClick ? undefined : 'img'} aria-label={onClick ? undefined : config.label}>
-      {hasPlant && <Plant stage={plantStage} />}
-      <g transform={hasPlant ? 'translate(0,12)' : undefined}>
-        <rect width={32} height={32} rx={9} fill={config.background} />
-        {day !== undefined && (
-          <text x={4} y={9} fontSize={6} fill={dark} opacity={0.55}>
-            {day}
-          </text>
-        )}
-        <Eyes style={config.eyeStyle} />
-        <Mouth style={config.mouthStyle} />
-      </g>
+  const face = (
+    <svg
+      viewBox="0 0 32 32"
+      width={size}
+      height={size}
+      aria-hidden={onClick ? true : undefined}
+      role={onClick ? undefined : 'img'}
+      aria-label={onClick ? undefined : config.label}
+      style={{ display: 'block' }}
+    >
+      <rect width={32} height={32} rx={9} fill={config.background} />
+      {day !== undefined && (
+        <text x={4} y={9} fontSize={6} fill={dark} opacity={0.55}>
+          {day}
+        </text>
+      )}
+      <Eyes style={config.eyeStyle} />
+      <Mouth style={config.mouthStyle} />
     </svg>
   );
 
-  if (!onClick) return svg;
+  // 芽・花は本体の外枠サイズに影響しない絶対配置のオーバーレイにする。
+  // こうしておくと、記録した瞬間に芽が生えても、マス自体の位置・カレンダーの行の高さがずれない。
+  const wrapped = (
+    <span style={{ position: 'relative', display: 'inline-block', width: size, height: size }}>
+      {hasPlant && (
+        <svg
+          viewBox="0 -3 32 15"
+          width={size}
+          height={size * PLANT_OVERLAY_RATIO}
+          style={{ position: 'absolute', bottom: '100%', left: 0 }}
+          aria-hidden="true"
+        >
+          <Plant stage={plantStage} />
+        </svg>
+      )}
+      {face}
+    </span>
+  );
+
+  if (!onClick) return wrapped;
 
   return (
     <button
@@ -136,7 +162,7 @@ export function MoodSquare({ level, day, plantStage = 'none', size = 40, selecte
         outlineOffset: 2,
       }}
     >
-      {svg}
+      {wrapped}
     </button>
   );
 }

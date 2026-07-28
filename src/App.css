@@ -58,6 +58,7 @@
   display: flex;
   justify-content: center;
   margin-bottom: 16px;
+  padding-top: 36px;
 }
 
 .picker {
@@ -152,9 +153,10 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
+  gap: 18px 6px;
   align-items: center;
   justify-items: center;
+  padding-top: 18px;
 }
 
 .empty-day {
