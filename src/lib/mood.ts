@@ -37,3 +37,24 @@ export interface MoodRecord {
   memo?: string;
   tags?: string[];
 }
+
+export const STORAGE_KEY = 'mood-diary-records';
+
+export function loadRecords(): Record<string, MoodRecord> | null {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Record<string, MoodRecord>;
+  } catch {
+    // 壊れたデータやプライベートブラウジング等で読み込めない場合は初期状態にフォールバックする
+    return null;
+  }
+}
+
+export function saveRecords(records: Record<string, MoodRecord>): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  } catch {
+    // 保存に失敗しても記録画面自体は使えるようにしておく（ストレージ容量超過等）
+  }
+}

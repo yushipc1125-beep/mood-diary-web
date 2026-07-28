@@ -1,16 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 import { MoodSquare } from './components/MoodSquare';
-import { cumulativeToPlantStage, type MoodLevel, type MoodRecord } from './lib/mood';
+import { cumulativeToPlantStage, loadRecords, saveRecords, type MoodLevel, type MoodRecord } from './lib/mood';
 
 const TAGS = ['仕事', '学業', '人間関係', '体調', '運動', '睡眠'];
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function toMonthPrefix(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function seedRecords(now: Date): Record<string, MoodRecord> {
-  // デモ表示用のサンプルデータ。実際にはRecord画面からの保存で埋まっていく想定。
+  // 初回アクセス時のデモ表示用データ。localStorageに何もなければこれが使われる。
   const seed: Record<string, MoodRecord> = {};
   const levels: MoodLevel[] = [3, 2, 1, 3, 0, 2, 3, 3, 1, 2];
   levels.forEach((level, i) => {
@@ -24,10 +29,15 @@ export default function App() {
   const today = useMemo(() => new Date(), []);
   const todayKey = toDateKey(today);
 
-  const [records, setRecords] = useState<Record<string, MoodRecord>>(() => seedRecords(today));
+  const [records, setRecords] = useState<Record<string, MoodRecord>>(() => loadRecords() ?? seedRecords(today));
   const [selectedLevel, setSelectedLevel] = useState<MoodLevel | null>(records[todayKey]?.level ?? null);
   const [memo, setMemo] = useState(records[todayKey]?.memo ?? '');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [viewedMonth, setViewedMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+
+  useEffect(() => {
+    saveRecords(records);
+  }, [records]);
 
   const totalRecordedDays = Object.keys(records).length;
   const plantStage = cumulativeToPlantStage(totalRecordedDays);
@@ -44,15 +54,26 @@ export default function App() {
     setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   }
 
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const firstWeekday = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
+  function goToPrevMonth() {
+    setViewedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  }
+
+  function goToNextMonth() {
+    setViewedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  }
+
+  const daysInMonth = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth() + 1, 0).getDate();
+  const firstWeekday = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), 1).getDay();
+  const monthPrefix = toMonthPrefix(viewedMonth);
+
+  const monthRecords = Object.values(records).filter((r) => r.date.startsWith(monthPrefix));
 
   const counts: Record<MoodLevel, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
-  Object.values(records).forEach((r) => {
+  monthRecords.forEach((r) => {
     counts[r.level] += 1;
   });
 
-  const recentMemos = Object.values(records)
+  const recentMemos = monthRecords
     .filter((r) => r.memo)
     .sort((a, b) => (a.date < b.date ? 1 : -1))
     .slice(0, 5);
@@ -87,7 +108,11 @@ export default function App() {
             ))}
           </div>
 
+          <label className="sr-only" htmlFor="memo-input">
+            ひとことメモ（任意）
+          </label>
           <input
+            id="memo-input"
             className="memo-input"
             type="text"
             placeholder="ひとことメモ（任意）"
@@ -95,13 +120,16 @@ export default function App() {
             onChange={(e) => setMemo(e.target.value)}
           />
 
-          <p className="label">タグ（任意）</p>
-          <div className="tags">
+          <p className="label" id="tags-label">
+            タグ（任意）
+          </p>
+          <div className="tags" role="group" aria-labelledby="tags-label">
             {TAGS.map((tag) => (
               <button
                 key={tag}
                 type="button"
                 className={`tag ${selectedTags.includes(tag) ? 'tag-active' : ''}`}
+                aria-pressed={selectedTags.includes(tag)}
                 onClick={() => toggleTag(tag)}
               >
                 {tag}
@@ -115,38 +143,42 @@ export default function App() {
         </section>
 
         <section className="card">
-          <h2>
-            {today.getFullYear()}年{today.getMonth() + 1}月
-          </h2>
-          <div className="weekday-row">
-            {['日', '月', '火', '水', '木', '金', '土'].map((d) => (
+          <div className="month-nav">
+            <button type="button" className="month-nav-button" onClick={goToPrevMonth} aria-label="前の月">
+              ‹
+            </button>
+            <h2>
+              {viewedMonth.getFullYear()}年{viewedMonth.getMonth() + 1}月
+            </h2>
+            <button type="button" className="month-nav-button" onClick={goToNextMonth} aria-label="次の月">
+              ›
+            </button>
+          </div>
+          <div className="weekday-row" aria-hidden="true">
+            {WEEKDAYS.map((d) => (
               <span key={d}>{d}</span>
             ))}
           </div>
           <div className="calendar-grid">
             {Array.from({ length: firstWeekday }).map((_, i) => (
-              <div key={`pad-${i}`} />
+              <div key={`pad-${i}`} aria-hidden="true" />
             ))}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
-              const d = new Date(today.getFullYear(), today.getMonth(), day);
+              const d = new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), day);
               const key = toDateKey(d);
               const record = records[key];
               const isToday = key === todayKey;
 
               if (record) {
-                return (
-                  <MoodSquare
-                    key={key}
-                    level={record.level}
-                    day={day}
-                    plantStage={isToday ? plantStage : 'none'}
-                    size={36}
-                  />
-                );
+                return <MoodSquare key={key} level={record.level} day={day} plantStage={isToday ? plantStage : 'none'} size={36} />;
               }
               return (
-                <div key={key} className={`empty-day ${isToday ? 'empty-day-today' : ''}`}>
+                <div
+                  key={key}
+                  className={`empty-day ${isToday ? 'empty-day-today' : ''}`}
+                  aria-label={`${day}日${isToday ? '（今日）' : ''} 記録なし`}
+                >
                   {day}
                 </div>
               );
@@ -157,7 +189,7 @@ export default function App() {
         <section className="card">
           <h2>気分の記録</h2>
           <p className="meta">
-            {today.getFullYear()}年{today.getMonth() + 1}月
+            {viewedMonth.getFullYear()}年{viewedMonth.getMonth() + 1}月
           </p>
           <div className="stats">
             {([3, 2, 1, 0] as MoodLevel[]).map((level) => (

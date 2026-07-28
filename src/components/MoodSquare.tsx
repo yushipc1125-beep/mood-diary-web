@@ -99,22 +99,10 @@ export function MoodSquare({ level, day, plantStage = 'none', size = 40, selecte
   const config = MOOD_LEVELS[level];
   const hasPlant = plantStage !== 'none';
   const viewBox = hasPlant ? '0 0 32 46' : '0 0 32 32';
+  const height = hasPlant ? size * (46 / 32) : size;
 
-  return (
-    <svg
-      viewBox={viewBox}
-      width={size}
-      height={hasPlant ? size * (46 / 32) : size}
-      onClick={onClick}
-      role={onClick ? 'button' : 'img'}
-      aria-label={config.label}
-      style={{
-        cursor: onClick ? 'pointer' : undefined,
-        outline: selected ? `2px solid ${config.background}` : undefined,
-        outlineOffset: 2,
-        borderRadius: 8,
-      }}
-    >
+  const svg = (
+    <svg viewBox={viewBox} width={size} height={height} aria-hidden={onClick ? true : undefined} role={onClick ? undefined : 'img'} aria-label={onClick ? undefined : config.label}>
       {hasPlant && <Plant stage={plantStage} />}
       <g transform={hasPlant ? 'translate(0,12)' : undefined}>
         <rect width={32} height={32} rx={9} fill={config.background} />
@@ -127,5 +115,28 @@ export function MoodSquare({ level, day, plantStage = 'none', size = 40, selecte
         <Mouth style={config.mouthStyle} />
       </g>
     </svg>
+  );
+
+  if (!onClick) return svg;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      aria-label={config.label}
+      style={{
+        display: 'inline-flex',
+        padding: 0,
+        border: 'none',
+        background: 'none',
+        cursor: 'pointer',
+        borderRadius: 8,
+        outline: selected ? `2px solid ${config.background}` : undefined,
+        outlineOffset: 2,
+      }}
+    >
+      {svg}
+    </button>
   );
 }
