@@ -51,6 +51,16 @@ npm install
 npm run dev
 ```
 
+## GitHub Pagesへのデプロイ
+
+```
+npm run deploy
+```
+
+初回のみ、リポジトリの Settings → Pages で Source を `gh-pages` ブランチに設定してください。
+公開URLは `https://<GitHubユーザー名>.github.io/mood-diary-web/` になります。
+リポジトリ名を `mood-diary-web` 以外にした場合は、`vite.config.ts` の `base` もあわせて変更してください。
+
 ## 進捗 / 今後
 
 - [x] デザイン仕様の策定
