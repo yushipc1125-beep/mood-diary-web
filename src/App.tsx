@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
 import { MoodSquare } from './components/MoodSquare';
-import { cumulativeToPlantStage, loadRecords, saveRecords, type MoodLevel, type MoodRecord } from './lib/mood';
+import {
+  cumulativeToPlantStage,
+  formatDateLabel,
+  loadRecords,
+  saveRecords,
+  type MoodLevel,
+  type MoodRecord,
+} from './lib/mood';
 
 const TAGS = ['仕事', '学業', '人間関係', '体調', '運動', '睡眠'];
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -30,24 +37,53 @@ export default function App() {
   const todayKey = toDateKey(today);
 
   const [records, setRecords] = useState<Record<string, MoodRecord>>(() => loadRecords() ?? seedRecords(today));
+  const [editingDate, setEditingDate] = useState(todayKey);
   const [selectedLevel, setSelectedLevel] = useState<MoodLevel | null>(records[todayKey]?.level ?? null);
   const [memo, setMemo] = useState(records[todayKey]?.memo ?? '');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>(records[todayKey]?.tags ?? []);
   const [viewedMonth, setViewedMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
 
   useEffect(() => {
     saveRecords(records);
   }, [records]);
 
+  // 編集対象の日付を切り替えたときだけ、フォームの内容をその日の記録で置き換える。
+  // records の変化そのものには反応させない（保存直後に入力中の内容が消えるのを防ぐため）。
+  useEffect(() => {
+    const r = records[editingDate];
+    setSelectedLevel(r?.level ?? null);
+    setMemo(r?.memo ?? '');
+    setSelectedTags(r?.tags ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingDate]);
+
+  const editingRecord = records[editingDate];
+  const isEditingToday = editingDate === todayKey;
+
   const totalRecordedDays = Object.keys(records).length;
   const plantStage = cumulativeToPlantStage(totalRecordedDays);
+
+  function selectDate(key: string) {
+    if (key > todayKey) return; // 未来の日付は選べない
+    setEditingDate(key);
+  }
 
   function handleSave() {
     if (selectedLevel === null) return;
     setRecords((prev) => ({
       ...prev,
-      [todayKey]: { date: todayKey, level: selectedLevel, memo: memo || undefined, tags: selectedTags },
+      [editingDate]: { date: editingDate, level: selectedLevel, memo: memo || undefined, tags: selectedTags },
     }));
+  }
+
+  function handleDelete() {
+    if (!editingRecord) return;
+    if (!window.confirm(`${formatDateLabel(editingDate)}の記録を削除しますか？`)) return;
+    setRecords((prev) => {
+      const next = { ...prev };
+      delete next[editingDate];
+      return next;
+    });
   }
 
   function toggleTag(tag: string) {
@@ -87,16 +123,23 @@ export default function App() {
 
       <main className="grid">
         <section className="card">
-          <h2>今日の気分は？</h2>
-          <p className="meta">
-            {today.getFullYear()}年{today.getMonth() + 1}月{today.getDate()}日
-          </p>
+          <div className="entry-header">
+            <div>
+              <h2>{isEditingToday ? '今日の気分は？' : '記録を編集'}</h2>
+              <p className="meta">{formatDateLabel(editingDate)}</p>
+            </div>
+            {!isEditingToday && (
+              <button type="button" className="link-button" onClick={() => selectDate(todayKey)}>
+                今日に戻る
+              </button>
+            )}
+          </div>
 
           <div className="mascot">
             <MoodSquare level={selectedLevel ?? 2} plantStage={plantStage} size={72} />
           </div>
 
-          <div className="picker" role="group" aria-label="今日の気分を選ぶ">
+          <div className="picker" role="group" aria-label="気分を選ぶ">
             {([0, 1, 2, 3] as MoodLevel[]).map((level) => (
               <MoodSquare
                 key={level}
@@ -137,9 +180,16 @@ export default function App() {
             ))}
           </div>
 
-          <button className="save-button" type="button" onClick={handleSave} disabled={selectedLevel === null}>
-            記録する
-          </button>
+          <div className="action-row">
+            <button className="save-button" type="button" onClick={handleSave} disabled={selectedLevel === null}>
+              {editingRecord ? '更新する' : '記録する'}
+            </button>
+            {editingRecord && (
+              <button className="delete-button" type="button" onClick={handleDelete}>
+                削除する
+              </button>
+            )}
+          </div>
         </section>
 
         <section className="card">
@@ -169,18 +219,33 @@ export default function App() {
               const key = toDateKey(d);
               const record = records[key];
               const isToday = key === todayKey;
+              const isEditing = key === editingDate;
+              const isFuture = key > todayKey;
 
               if (record) {
-                return <MoodSquare key={key} level={record.level} day={day} plantStage={isToday ? plantStage : 'none'} size={36} />;
+                return (
+                  <MoodSquare
+                    key={key}
+                    level={record.level}
+                    day={day}
+                    plantStage={isToday ? plantStage : 'none'}
+                    size={36}
+                    selected={isEditing}
+                    onClick={() => selectDate(key)}
+                  />
+                );
               }
               return (
-                <div
+                <button
                   key={key}
-                  className={`empty-day ${isToday ? 'empty-day-today' : ''}`}
+                  type="button"
+                  className={`empty-day ${isToday ? 'empty-day-today' : ''} ${isEditing ? 'empty-day-editing' : ''}`}
+                  onClick={() => selectDate(key)}
+                  disabled={isFuture}
                   aria-label={`${day}日${isToday ? '（今日）' : ''} 記録なし`}
                 >
                   {day}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -204,13 +269,13 @@ export default function App() {
           <div className="memo-list">
             {recentMemos.length === 0 && <p className="empty-note">まだメモはありません</p>}
             {recentMemos.map((r) => (
-              <div className="memo-row" key={r.date}>
+              <button type="button" className="memo-row" key={r.date} onClick={() => selectDate(r.date)}>
                 <MoodSquare level={r.level} size={24} />
                 <div>
                   <p className="memo-date">{r.date}</p>
                   <p className="memo-text">{r.memo}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </section>

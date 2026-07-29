@@ -40,6 +40,15 @@ export interface MoodRecord {
 
 export const STORAGE_KEY = 'mood-diary-records';
 
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+
+// "2026-07-20" のような日付キーを "2026年7月20日（月）" の表示形式にする
+export function formatDateLabel(dateKey: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const weekday = WEEKDAY_LABELS[new Date(y, m - 1, d).getDay()];
+  return `${y}年${m}月${d}日（${weekday}）`;
+}
+
 export function loadRecords(): Record<string, MoodRecord> | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
