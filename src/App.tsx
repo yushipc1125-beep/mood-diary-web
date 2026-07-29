@@ -21,22 +21,11 @@ function toMonthPrefix(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function seedRecords(now: Date): Record<string, MoodRecord> {
-  // 初回アクセス時のデモ表示用データ。localStorageに何もなければこれが使われる。
-  const seed: Record<string, MoodRecord> = {};
-  const levels: MoodLevel[] = [3, 2, 1, 3, 0, 2, 3, 3, 1, 2];
-  levels.forEach((level, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth(), i + 1);
-    seed[toDateKey(d)] = { date: toDateKey(d), level };
-  });
-  return seed;
-}
-
 export default function App() {
   const today = useMemo(() => new Date(), []);
   const todayKey = toDateKey(today);
 
-  const [records, setRecords] = useState<Record<string, MoodRecord>>(() => loadRecords() ?? seedRecords(today));
+  const [records, setRecords] = useState<Record<string, MoodRecord>>(() => loadRecords() ?? {});
   const [editingDate, setEditingDate] = useState(todayKey);
   const [selectedLevel, setSelectedLevel] = useState<MoodLevel | null>(records[todayKey]?.level ?? null);
   const [memo, setMemo] = useState(records[todayKey]?.memo ?? '');
