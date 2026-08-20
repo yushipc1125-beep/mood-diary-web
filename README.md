@@ -59,15 +59,10 @@ npm run deploy
 ```
 
 初回のみ、リポジトリの Settings → Pages で Source を `gh-pages` ブランチに設定してください。
-公開URLは `https://<GitHubユーザー名>.github.io/mood-diary-web/` になります。
+公開URLは `https://yushipc1125-beep.github.io/mood-diary-web/` になります。
 リポジトリ名を `mood-diary-web` 以外にした場合は、`vite.config.ts` の `base` もあわせて変更してください。
 
 ## 進捗 / 今後
 
-- [x] デザイン仕様の策定
-- [x] `MoodSquare` コンポーネントの実装
-- [x] 記録画面・カレンダー画面・記録一覧画面
-- [x] localStorageでの永続化
-- [x] 月送り（前月・翌月の表示）
-- [x] レスポンシブ・アクセシビリティの調整（キーボード操作・フォーカス表示・モバイル幅対応）
-- [x] 記録の編集・削除
+- [x] エクスポート/インポートできるように
+- [x] コメントに対して生成AIでの一言リアクションなど(API必須) 
